@@ -32,7 +32,7 @@ module OneLogin
 
       # Constructs the SAML Response. A Response Object that is an extension of the SamlMessage class.
       # @param response [String] A UUEncoded SAML response from the IdP.
-      # @param options  [Hash]   :settings to provide the OneLogin::RubySaml::Settings object 
+      # @param options  [Hash]   :settings to provide the OneLogin::RubySaml::Settings object
       #                          Or some options for the response validation process like skip the conditions validation
       #                          with the :skip_conditions, or allow a clock_drift when checking dates with :allowed_clock_drift
       #                          or :matches_request_id that will validate that the response matches the ID of the request,
@@ -51,6 +51,7 @@ module OneLogin
         end
 
         @response = decode_raw_saml(response)
+        p @response
         @document = XMLSecurity::SignedDocument.new(@response, @errors)
 
         if assertion_encrypted?
@@ -115,7 +116,7 @@ module OneLogin
       #    attributes['name']
       #
       # @return [Attributes] OneLogin::RubySaml::Attributes enumerable collection.
-      #      
+      #
       def attributes
         @attr_statements ||= begin
           attributes = Attributes.new
@@ -131,10 +132,10 @@ module OneLogin
                 # otherwise the value is to be regarded as empty.
                 ["true", "1"].include?(e.attributes['xsi:nil']) ? nil : e.text.to_s
               # explicitly support saml2:NameID with saml2:NameQualifier if supplied in attributes
-              # this is useful for allowing eduPersonTargetedId to be passed as an opaque identifier to use to 
+              # this is useful for allowing eduPersonTargetedId to be passed as an opaque identifier to use to
               # identify the subject in an SP rather than email or other less opaque attributes
               # NameQualifier, if present is prefixed with a "/" to the value
-              else 
+              else
                REXML::XPath.match(e,'a:NameID', { "a" => ASSERTION }).collect{|n|
                   (n.attributes['NameQualifier'] ? n.attributes['NameQualifier'] +"/" : '') + n.text.to_s
                 }
@@ -161,7 +162,7 @@ module OneLogin
 
       # Checks if the Status has the "Success" code
       # @return [Boolean] True if the StatusCode is Sucess
-      # 
+      #
       def success?
         status_code == "urn:oasis:names:tc:SAML:2.0:status:Success"
       end
@@ -326,7 +327,7 @@ module OneLogin
       #
       def validate_success_status
         return true if success?
-          
+
         error_msg = 'The status code of the Response was not Success'
         status_error_msg = OneLogin::RubySaml::Utils.status_error_msg(error_msg, status_code, status_message)
         append_error(status_error_msg)
@@ -334,7 +335,7 @@ module OneLogin
 
       # Validates the SAML Response against the specified schema.
       # @return [Boolean] True if the XML is valid, otherwise False if soft=True
-      # @raise [ValidationError] if soft == false and validation fails 
+      # @raise [ValidationError] if soft == false and validation fails
       #
       def validate_structure
         structure_error_msg = "Invalid SAML Response. Not match the saml-schema-protocol-2.0.xsd"
@@ -367,7 +368,7 @@ module OneLogin
         true
       end
 
-      # Validates that the SAML Response contains an ID 
+      # Validates that the SAML Response contains an ID
       # If fails, the error is added to the errors array.
       # @return [Boolean] True if the SAML Response contains an ID, otherwise returns False
       #
@@ -420,7 +421,7 @@ module OneLogin
       # @raise [ValidationError] if soft == false and validation fails
       #
       def validate_no_encrypted_attributes
-        nodes = xpath_from_signed_assertion("/a:AttributeStatement/a:EncryptedAttribute")        
+        nodes = xpath_from_signed_assertion("/a:AttributeStatement/a:EncryptedAttribute")
         if nodes && nodes.length > 0
           return append_error("There is an EncryptedAttribute in the Response and this SP not support them")
         end
@@ -599,7 +600,7 @@ module OneLogin
       end
 
       # Validates if exists valid SubjectConfirmation (If the response was initialized with the :allowed_clock_drift option,
-      # timimg validation are relaxed by the allowed_clock_drift value. If the response was initialized with the 
+      # timimg validation are relaxed by the allowed_clock_drift value. If the response was initialized with the
       # :skip_subject_confirmation option, this validation is skipped)
       # If fails, the error is added to the errors array
       # @return [Boolean] True if exists a valid SubjectConfirmation, otherwise False if soft=True
@@ -610,7 +611,7 @@ module OneLogin
         valid_subject_confirmation = false
 
         subject_confirmation_nodes = xpath_from_signed_assertion('/a:Subject/a:SubjectConfirmation')
-        
+
         now = Time.now.utc
         subject_confirmation_nodes.each do |subject_confirmation|
           if subject_confirmation.attributes.include? "Method" and subject_confirmation.attributes['Method'] != 'urn:oasis:names:tc:SAML:2.0:cm:bearer'
@@ -629,7 +630,7 @@ module OneLogin
           next if (attrs.include? "InResponseTo" and attrs['InResponseTo'] != in_response_to) ||
                   (attrs.include? "NotOnOrAfter" and (parse_time(confirmation_data_node, "NotOnOrAfter") + allowed_clock_drift) <= now) ||
                   (attrs.include? "NotBefore" and parse_time(confirmation_data_node, "NotBefore") > (now + allowed_clock_drift))
-          
+
           valid_subject_confirmation = true
           break
         end
@@ -680,7 +681,7 @@ module OneLogin
         opts[:cert] = settings.get_idp_cert
         fingerprint = settings.get_fingerprint
 
-        unless fingerprint && doc.validate_document(fingerprint, @soft, opts)          
+        unless fingerprint && doc.validate_document(fingerprint, @soft, opts)
           return append_error(error_msg)
         end
 
